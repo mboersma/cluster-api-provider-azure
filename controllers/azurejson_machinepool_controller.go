@@ -79,7 +79,7 @@ func (r *AzureJSONMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl
 
 	log = log.WithValues("namespace", req.Namespace, "azureMachinePool", req.Name)
 
-	// Fetch the AzureMachine instance
+	// Fetch the AzureMachinePool instance
 	azureMachinePool := &expv1.AzureMachinePool{}
 	err := r.Get(ctx, req.NamespacedName, azureMachinePool)
 	if err != nil {
@@ -113,7 +113,7 @@ func (r *AzureJSONMachinePoolReconciler) Reconcile(ctx context.Context, req ctrl
 
 	_, kind := infrav1.GroupVersion.WithKind("AzureCluster").ToAPIVersionAndKind()
 
-	// only look at azure clusters
+	// only look at Azure clusters
 	if cluster.Spec.InfrastructureRef.Kind != kind {
 		log.WithValues("kind", cluster.Spec.InfrastructureRef.Kind).Info("infra ref was not an AzureCluster")
 		return ctrl.Result{}, nil

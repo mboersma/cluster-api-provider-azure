@@ -199,9 +199,9 @@ func (m MachinePoolScope) MaxSurge() (int, error) {
 	return 0, nil
 }
 
-// updateReplicasAndProviderIDs ties the Azure VMSS instance data and the Node status data together to build and update
-// the AzureMachinePool replica count and providerIDList.
-func (m *MachinePoolScope) updateReplicasAndProviderIDs(ctx context.Context) error {
+// updateReplicasAndInfraRefs ties the Azure VMSS instance data and the Node status data together to build and update
+// the AzureMachinePool replica count and infrastructureRefList.
+func (m *MachinePoolScope) updateReplicasAndInfraRefs(ctx context.Context) error {
 	ctx, _, done := tele.StartSpanWithLogger(ctx, "scope.MachinePoolScope.UpdateInstanceStatuses")
 	defer done()
 
@@ -212,15 +212,24 @@ func (m *MachinePoolScope) updateReplicasAndProviderIDs(ctx context.Context) err
 
 	var readyReplicas int32
 	providerIDs := make([]string, len(machines))
+	infraRefs := make([]corev1.ObjectReference, len(machines))
 	for i, machine := range machines {
 		if machine.Status.Ready {
 			readyReplicas++
 		}
 		providerIDs[i] = machine.Spec.ProviderID
+		infraRefs[i] = corev1.ObjectReference{
+			Kind:       machine.Kind,
+			Name:       machine.Name,
+			Namespace:  m.MachinePool.Namespace,
+			UID:        machine.UID,
+			APIVersion: machine.APIVersion,
+		}
 	}
 
 	m.AzureMachinePool.Status.Replicas = readyReplicas
 	m.AzureMachinePool.Spec.ProviderIDList = providerIDs
+	m.AzureMachinePool.Spec.InfrastructureRefList = infraRefs
 	return nil
 }
 
@@ -260,6 +269,14 @@ func (m *MachinePoolScope) applyAzureMachinePoolMachines(ctx context.Context) er
 
 	existingMachinesByProviderID := make(map[string]infrav1exp.AzureMachinePoolMachine, len(ampml.Items))
 	for _, machine := range ampml.Items {
+		// decorate each machine with the "cluster.x-k8s.io/delete-machine" annotation if needed
+		annotation := m.ownerDeleteMachineAnnotation(ctx, machine)
+		if annotation != "" {
+			if machine.Annotations == nil {
+				machine.Annotations = make(map[string]string)
+			}
+			machine.Annotations[clusterv1.DeleteMachineAnnotation] = annotation
+		}
 		existingMachinesByProviderID[machine.Spec.ProviderID] = machine
 	}
 
@@ -315,14 +332,49 @@ func (m *MachinePoolScope) applyAzureMachinePoolMachines(ctx context.Context) er
 
 	for _, machine := range toDelete {
 		machine := machine
-		log.Info("deleting selected AzureMachinePoolMachine", "providerID", machine.Spec.ProviderID)
-		if err := m.client.Delete(ctx, &machine); err != nil {
-			return errors.Wrap(err, "failed deleting AzureMachinePoolMachine to reduce replica count")
+		log.V(4).Info("deleting selected AzureMachinePoolMachine", "providerID", machine.Spec.ProviderID)
+		// Delete the owning CAPI machine if it exists.
+		for _, ref := range machine.GetOwnerReferences() {
+			if ref.Kind == "Machine" {
+				if err = m.client.Delete(ctx, &clusterv1.Machine{
+					ObjectMeta: metav1.ObjectMeta{Name: ref.Name, Namespace: machine.Namespace},
+				}); err != nil {
+					return errors.Wrap(err, "failed to delete CAPI Machine")
+				}
+				break
+			} else {
+				if err := m.client.Delete(ctx, &machine); err != nil {
+					return errors.Wrap(err, "failed to delete AzureMachinePoolMachine to reduce replica count")
+				}
+			}
 		}
 	}
 
 	log.V(4).Info("done reconciling AzureMachinePoolMachine(s)")
 	return nil
+}
+
+func (m *MachinePoolScope) ownerDeleteMachineAnnotation(ctx context.Context, machine infrav1exp.AzureMachinePoolMachine) string {
+	ctx, log, done := tele.StartSpanWithLogger(ctx, "scope.MachinePoolScope.ownerDeleteMachineAnnotation")
+	defer done()
+
+	// Find the CAPI Machine owner associated with this AzureMachinePoolMachine
+	capiMachine := &clusterv1.Machine{}
+	for _, owner := range machine.GetOwnerReferences() {
+		if owner.Kind == "Machine" {
+			namespacedName := types.NamespacedName{Namespace: m.AzureMachinePool.Namespace, Name: owner.Name}
+			if err := m.client.Get(ctx, namespacedName, capiMachine); err != nil {
+				log.V(4).Error(err, "failed to get CAPI Machine", "machine", machine.Name, "namespace", machine.Namespace)
+				return ""
+			}
+		}
+	}
+	if capiMachine.Annotations != nil {
+		if val, ok := capiMachine.Annotations[clusterv1.DeleteMachineAnnotation]; ok {
+			return val
+		}
+	}
+	return ""
 }
 
 func (m *MachinePoolScope) createMachine(ctx context.Context, machine azure.VMSSVM) error {
@@ -403,10 +455,8 @@ func (m *MachinePoolScope) setProvisioningStateAndConditions(v infrav1.Provision
 		} else {
 			conditions.MarkFalse(m.AzureMachinePool, infrav1.ScaleSetDesiredReplicasCondition, infrav1.ScaleSetScaleDownReason, clusterv1.ConditionSeverityInfo, "")
 		}
-		m.SetNotReady()
 	case v == infrav1.Updating:
 		conditions.MarkFalse(m.AzureMachinePool, infrav1.ScaleSetModelUpdatedCondition, infrav1.ScaleSetModelOutOfDateReason, clusterv1.ConditionSeverityInfo, "")
-		m.SetNotReady()
 	case v == infrav1.Creating:
 		conditions.MarkFalse(m.AzureMachinePool, infrav1.ScaleSetRunningCondition, infrav1.ScaleSetCreatingReason, clusterv1.ConditionSeverityInfo, "")
 		m.SetNotReady()
@@ -504,8 +554,8 @@ func (m *MachinePoolScope) Close(ctx context.Context) error {
 		}
 
 		m.setProvisioningStateAndConditions(m.vmssState.State)
-		if err := m.updateReplicasAndProviderIDs(ctx); err != nil {
-			return errors.Wrap(err, "failed to update replicas and providerIDs")
+		if err := m.updateReplicasAndInfraRefs(ctx); err != nil {
+			return errors.Wrap(err, "failed to update replicas and infraRefs")
 		}
 	}
 

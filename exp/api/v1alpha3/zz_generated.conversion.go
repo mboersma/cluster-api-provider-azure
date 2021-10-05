@@ -488,6 +488,7 @@ func autoConvert_v1beta1_AzureMachinePoolSpec_To_v1alpha3_AzureMachinePoolSpec(i
 	}
 	out.AdditionalTags = *(*clusterapiproviderazureapiv1alpha3.Tags)(unsafe.Pointer(&in.AdditionalTags))
 	out.ProviderID = in.ProviderID
+	// WARNING: in.InfrastructureRefList requires manual conversion: does not exist in peer-type
 	out.ProviderIDList = *(*[]string)(unsafe.Pointer(&in.ProviderIDList))
 	out.Identity = clusterapiproviderazureapiv1alpha3.VMIdentity(in.Identity)
 	out.UserAssignedIdentities = *(*[]clusterapiproviderazureapiv1alpha3.UserAssignedIdentity)(unsafe.Pointer(&in.UserAssignedIdentities))

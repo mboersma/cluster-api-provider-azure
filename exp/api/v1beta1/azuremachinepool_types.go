@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
@@ -107,8 +108,15 @@ type (
 		// +optional
 		ProviderID string `json:"providerID,omitempty"`
 
-		// ProviderIDList are the identification IDs of machine instances provided by the provider.
+		// InfrastructureRefList are the infrastructure references of machine instances, populated by the provider.
+		// This field must contain the infrastructure references of all instances in the machine pool.
+		// If this list is populated by the provider, `ProviderIDList` should be left empty.
+		// +optional
+		InfrastructureRefList []corev1.ObjectReference `json:"infrastructureRefList,omitempty"`
+
+		// ProviderIDList are the identifiers of machine instances populated by the provider.
 		// This field must match the provider IDs as seen on the node objects corresponding to a machine pool's machine instances.
+		// If this list is populated by the provider, `InfrastructureRefList` should be left empty.
 		// +optional
 		ProviderIDList []string `json:"providerIDList,omitempty"`
 

@@ -22,8 +22,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	apiv1beta1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
@@ -264,7 +264,7 @@ func (in *AzureMachinePoolMachineStatus) DeepCopyInto(out *AzureMachinePoolMachi
 	*out = *in
 	if in.NodeRef != nil {
 		in, out := &in.NodeRef, &out.NodeRef
-		*out = new(corev1.ObjectReference)
+		*out = new(v1.ObjectReference)
 		**out = **in
 	}
 	if in.ProvisioningState != nil {
@@ -365,6 +365,11 @@ func (in *AzureMachinePoolSpec) DeepCopyInto(out *AzureMachinePoolSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.InfrastructureRefList != nil {
+		in, out := &in.InfrastructureRefList, &out.InfrastructureRefList
+		*out = make([]v1.ObjectReference, len(*in))
+		copy(*out, *in)
+	}
 	if in.ProviderIDList != nil {
 		in, out := &in.ProviderIDList, &out.ProviderIDList
 		*out = make([]string, len(*in))
@@ -378,7 +383,7 @@ func (in *AzureMachinePoolSpec) DeepCopyInto(out *AzureMachinePoolSpec) {
 	in.Strategy.DeepCopyInto(&out.Strategy)
 	if in.NodeDrainTimeout != nil {
 		in, out := &in.NodeDrainTimeout, &out.NodeDrainTimeout
-		*out = new(v1.Duration)
+		*out = new(metav1.Duration)
 		**out = **in
 	}
 }
@@ -634,7 +639,7 @@ func (in *AzureManagedControlPlaneSpec) DeepCopyInto(out *AzureManagedControlPla
 	}
 	if in.IdentityRef != nil {
 		in, out := &in.IdentityRef, &out.IdentityRef
-		*out = new(corev1.ObjectReference)
+		*out = new(v1.ObjectReference)
 		**out = **in
 	}
 	if in.AADProfile != nil {

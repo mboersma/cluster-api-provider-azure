@@ -69,6 +69,12 @@ rules:
   - cluster.x-k8s.io
   resources:
   - machines
+  verbs:
+  - delete
+- apiGroups:
+  - cluster.x-k8s.io
+  resources:
+  - machines
   - machines/status
   verbs:
   - get

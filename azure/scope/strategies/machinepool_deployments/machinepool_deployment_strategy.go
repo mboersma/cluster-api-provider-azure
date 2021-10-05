@@ -20,6 +20,7 @@ import (
 	"context"
 	"math/rand"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -27,6 +28,7 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-azure/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
+	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -272,7 +274,9 @@ func orderByNewest(machines []infrav1exp.AzureMachinePoolMachine) []infrav1exp.A
 	sort.Slice(machines, func(i, j int) bool {
 		return machines[i].ObjectMeta.CreationTimestamp.After(machines[j].ObjectMeta.CreationTimestamp.Time)
 	})
-
+	sort.SliceStable(machines, func(i, j int) bool {
+		return compareDeleteAnnotations(machines[i], machines[j])
+	})
 	return machines
 }
 
@@ -280,14 +284,54 @@ func orderByOldest(machines []infrav1exp.AzureMachinePoolMachine) []infrav1exp.A
 	sort.Slice(machines, func(i, j int) bool {
 		return machines[j].ObjectMeta.CreationTimestamp.After(machines[i].ObjectMeta.CreationTimestamp.Time)
 	})
-
+	sort.SliceStable(machines, func(i, j int) bool {
+		return compareDeleteAnnotations(machines[i], machines[j])
+	})
 	return machines
 }
 
 func orderRandom(machines []infrav1exp.AzureMachinePoolMachine) []infrav1exp.AzureMachinePoolMachine {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(machines), func(i, j int) { machines[i], machines[j] = machines[j], machines[i] })
+	sort.SliceStable(machines, func(i, j int) bool {
+		return compareDeleteAnnotations(machines[i], machines[j])
+	})
 	return machines
+}
+
+// compareDeleteAnnotations tries to parse the "cluster.x-k8s.io/delete-machine" annotation on a machine as
+// a date value in the format that cluster-autoscaler uses. It falls back to string comparison if that fails,
+// with "false" and "" (empty string) sorted last.
+//
+// To annotate a machine for deletion manually, run this command on the management cluster:
+//   kubectl annotate machine <machine-name> cluster.x-k8s.io/delete-machine="$(date +"%Y-%d-%m %T %z %Z")"
+// Then scale down the machine pool to delete the machine.
+//   kubectl scale machine-pool/<machinepool-name> --replicas=<N-1>
+func compareDeleteAnnotations(i, j infrav1exp.AzureMachinePoolMachine) bool {
+	ia := deleteMachineAnnotation(i)
+	ja := deleteMachineAnnotation(j)
+	layout := "2006-01-02 15:04:05.999999999 -0700 MST"
+	iTime, iErr := time.Parse(layout, strings.Split(ia, " m=")[0])
+	jTime, jErr := time.Parse(layout, strings.Split(ja, " m=")[0])
+	if iErr == nil && jErr == nil {
+		return iTime.Before(jTime)
+	}
+	if iErr != nil && jErr == nil {
+		return false
+	}
+	if iErr == nil && jErr != nil {
+		return true
+	}
+	return ja == "false" || ja == ""
+}
+
+func deleteMachineAnnotation(machine infrav1exp.AzureMachinePoolMachine) string {
+	if machine.ObjectMeta.Annotations != nil {
+		if val, ok := machine.ObjectMeta.Annotations[clusterv1.DeleteMachineAnnotation]; ok {
+			return val
+		}
+	}
+	return ""
 }
 
 func getProviderIDs(machines []infrav1exp.AzureMachinePoolMachine) []string {

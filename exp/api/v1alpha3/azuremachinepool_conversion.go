@@ -82,6 +82,9 @@ func (src *AzureMachinePool) ConvertTo(dstRaw conversion.Hub) error {
 		}
 	}
 
+	// Restore list of infrastructure references.
+	dst.Spec.InfrastructureRefList = restored.Spec.InfrastructureRefList
+
 	return nil
 }
 

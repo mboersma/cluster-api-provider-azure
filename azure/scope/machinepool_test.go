@@ -614,7 +614,7 @@ func TestMachinePoolScope_updateReplicasAndProviderIDs(t *testing.T) {
 				},
 				AzureMachinePool: amp,
 			}
-			err := s.updateReplicasAndProviderIDs(context.TODO())
+			err := s.updateReplicasAndInfraRefs(context.TODO())
 			c.Verify(g, s.AzureMachinePool, err)
 		})
 	}
