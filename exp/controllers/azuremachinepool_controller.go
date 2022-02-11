@@ -297,7 +297,7 @@ func (ampr *AzureMachinePoolReconciler) reconcileNormal(ctx context.Context, mac
 			}
 
 			if reconcileError.IsTransient() {
-				log.Error(err, "failed to reconcile AzureMachinePool", "name", machinePoolScope.Name())
+				log.V(4).Info("failed to reconcile AzureMachinePoolMachine", "name", machinePoolScope.Name(), "transient_error", err)
 				return reconcile.Result{RequeueAfter: reconcileError.RequeueAfter()}, nil
 			}
 

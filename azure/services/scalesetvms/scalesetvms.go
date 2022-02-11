@@ -69,7 +69,7 @@ func (s *Service) Name() string {
 
 // Reconcile idempotently gets, creates, and updates a scale set.
 func (s *Service) Reconcile(ctx context.Context) error {
-	ctx, _, done := tele.StartSpanWithLogger(ctx, "scalesetvms.Service.Reconcile")
+	ctx, log, done := tele.StartSpanWithLogger(ctx, "scalesetvms.Service.Reconcile")
 	defer done()
 
 	var (
@@ -80,39 +80,41 @@ func (s *Service) Reconcile(ctx context.Context) error {
 	)
 
 	if instanceID == "" {
+		log.V(4).Info("VMSS is flex", "vmssName", vmssName, "providerID", providerID)
 		// this means we are using VMSS Flex and need to fetch by resource ID
-		// fetch the latest data about the instance -- model mutations are handled by the AzureMachinePoolReconciler
+		// fetch the latest data about the vm -- model mutations are handled by the AzureMachinePoolReconciler
 		resourceID := strings.TrimPrefix(providerID, azure.ProviderIDPrefix)
 		resourceIDSplits := strings.Split(resourceID, "/")
 		resourceID = strings.TrimSuffix(resourceID, resourceIDSplits[len(resourceIDSplits)-1])
 		resourceID = resourceID + resourceIDSplits[len(resourceIDSplits)-3] + "_" + resourceIDSplits[len(resourceIDSplits)-1]
-		instance, err := s.VMClient.GetByID(ctx, resourceID)
+		vm, err := s.VMClient.GetByID(ctx, resourceID)
 		if err != nil {
 			if azure.ResourceNotFound(err) {
-				return azure.WithTransientError(errors.New("instance does not exist yet"), 30*time.Second)
+				return azure.WithTransientError(errors.New("vm does not exist yet"), 30*time.Second)
 			}
-			return errors.Wrap(err, "failed getting instance")
+			return errors.Wrap(err, "failed getting vm")
 		}
 
-		s.Scope.SetVMSSVM(converters.SDKVMToVMSSVM(instance))
+		s.Scope.SetVMSSVM(converters.SDKVMToVMSSVM(vm))
 		return nil
 	}
 
-	// must be using VMSS Uniform, so fetch by instance ID
-	// fetch the latest data about the instance -- model mutations are handled by the AzureMachinePoolReconciler
-	instance, err := s.Client.Get(ctx, resourceGroup, vmssName, instanceID)
+	log.V(4).Info("VMSS is uniform", "instanceID", instanceID, "vmssName", vmssName, "providerID", providerID)
+	// must be using VMSS Uniform, so fetch by vm ID
+	// fetch the latest data about the vm -- model mutations are handled by the AzureMachinePoolReconciler
+	vm, err := s.Client.Get(ctx, resourceGroup, vmssName, instanceID)
 	if err != nil {
 		if azure.ResourceNotFound(err) {
-			return azure.WithTransientError(errors.New("instance does not exist yet"), 30*time.Second)
+			return azure.WithTransientError(errors.New("vm does not exist yet"), 30*time.Second)
 		}
-		return errors.Wrap(err, "failed getting instance")
+		return errors.Wrap(err, "failed getting vm")
 	}
 
-	s.Scope.SetVMSSVM(converters.SDKToVMSSVM(instance))
+	s.Scope.SetVMSSVM(converters.SDKToVMSSVM(vm))
 	return nil
 }
 
-// Delete deletes a scaleset instance asynchronously returning a future which encapsulates the long-running operation.
+// Delete deletes a scaleset vm asynchronously returning a future which encapsulates the long-running operation.
 func (s *Service) Delete(ctx context.Context) error {
 	var (
 		resourceGroup = s.Scope.ResourceGroup()
@@ -135,7 +137,7 @@ func (s *Service) Delete(ctx context.Context) error {
 		return s.deleteVMSSFlexVM(ctx, strings.TrimPrefix(providerID, azure.ProviderIDPrefix))
 	}
 
-	// this is a VMSS Uniform instance
+	// this is a VMSS Uniform vm
 	return s.deleteVMSSUniformInstance(ctx, resourceGroup, vmssName, instanceID, log)
 }
 
@@ -144,9 +146,9 @@ func (s *Service) deleteVMSSFlexVM(ctx context.Context, resourceID string) error
 	defer done()
 
 	defer func() {
-		if instance, err := s.VMClient.GetByID(ctx, resourceID); err == nil && instance.VirtualMachineProperties != nil {
-			log.V(4).Info("updating vmss vm state", "state", instance.ProvisioningState)
-			s.Scope.SetVMSSVM(converters.SDKVMToVMSSVM(instance))
+		if vm, err := s.VMClient.GetByID(ctx, resourceID); err == nil && vm.VirtualMachineProperties != nil {
+			log.V(4).Info("updating vmss vm state", "state", vm.ProvisioningState)
+			s.Scope.SetVMSSVM(converters.SDKVMToVMSSVM(vm))
 		}
 	}()
 
@@ -162,43 +164,40 @@ func (s *Service) deleteVMSSFlexVM(ctx context.Context, resourceID string) error
 			return azure.WithTransientError(errors.New("attempting to delete, non-delete operation in progress"), 30*time.Second)
 		}
 
-		log.V(4).Info("checking if the instance is done deleting")
+		log.V(4).Info("checking if the vm is done deleting")
 		if _, err := s.VMClient.GetResultIfDone(ctx, future); err != nil {
-			// fetch instance to update status
+			// fetch vm to update status
 			return errors.Wrap(err, "failed to get result of long running operation")
 		}
 
 		// there was no error in fetching the result, the future has been completed
-		log.V(4).Info("successfully deleted the instance")
+		log.V(4).Info("successfully deleted the vm")
 		s.Scope.DeleteLongRunningOperationState(parsed.ResourceName, serviceName)
 		return nil
 	}
+	// since the future was nil, there is no ongoing activity; start deleting the vm
 
 	vmGetter := &VMSSFlexVMGetter{
 		Name:          parsed.ResourceName,
 		ResourceGroup: parsed.ResourceGroup,
 	}
 
-	// since the future was nil, there is no ongoing activity; start deleting the instance
 	sdkFuture, err := s.VMClient.DeleteAsync(ctx, vmGetter)
 	if err != nil {
 		if azure.ResourceNotFound(err) {
 			// already deleted
 			return nil
 		}
-		return errors.Wrapf(err, "failed to delete instance %s/%s", parsed.ResourceGroup, parsed.ResourceName)
+		return errors.Wrapf(err, "failed to delete vm %s/%s", parsed.ResourceGroup, parsed.ResourceName)
 	}
 
-	future, err = converters.SDKToFuture(sdkFuture, infrav1.DeleteFuture, serviceName, vmGetter.Name, vmGetter.ResourceName())
-	if err != nil {
-		return errors.Wrapf(err, "failed to covert SDK to Future %s/%s", parsed.ResourceGroup, parsed.ResourceName)
-	}
-	s.Scope.SetLongRunningOperationState(future)
-
-	log.V(4).Info("checking if the instance is done deleting")
-	if _, err := s.VMClient.GetResultIfDone(ctx, future); err != nil {
-		// fetch instance to update status
-		return errors.Wrap(err, "failed to get result of long running operation")
+	if sdkFuture != nil {
+		future, err = converters.SDKToFuture(sdkFuture, infrav1.DeleteFuture, serviceName, vmGetter.Name, vmGetter.ResourceName())
+		if err != nil {
+			return errors.Wrapf(err, "failed to covert SDK to Future %s/%s", parsed.ResourceGroup, parsed.ResourceName)
+		}
+		s.Scope.SetLongRunningOperationState(future)
+		return nil
 	}
 
 	s.Scope.DeleteLongRunningOperationState(parsed.ResourceName, serviceName)
@@ -210,9 +209,9 @@ func (s *Service) deleteVMSSUniformInstance(ctx context.Context, resourceGroup s
 	defer done()
 
 	defer func() {
-		if instance, err := s.Client.Get(ctx, resourceGroup, vmssName, instanceID); err == nil && instance.VirtualMachineScaleSetVMProperties != nil {
-			log.V(4).Info("updating vmss vm state", "state", instance.ProvisioningState)
-			s.Scope.SetVMSSVM(converters.SDKToVMSSVM(instance))
+		if vm, err := s.Client.Get(ctx, resourceGroup, vmssName, instanceID); err == nil && vm.VirtualMachineScaleSetVMProperties != nil {
+			log.V(4).Info("updating vmss vm state", "state", vm.ProvisioningState)
+			s.Scope.SetVMSSVM(converters.SDKToVMSSVM(vm))
 		}
 	}()
 
@@ -223,33 +222,33 @@ func (s *Service) deleteVMSSUniformInstance(ctx context.Context, resourceGroup s
 			return azure.WithTransientError(errors.New("attempting to delete, non-delete operation in progress"), 30*time.Second)
 		}
 
-		log.V(4).Info("checking if the instance is done deleting")
+		log.V(4).Info("checking if the vm is done deleting")
 		if _, err := s.Client.GetResultIfDone(ctx, future); err != nil {
-			// fetch instance to update status
+			// fetch vm to update status
 			return errors.Wrap(err, "failed to get result of long running operation")
 		}
 
 		// there was no error in fetching the result, the future has been completed
-		log.V(4).Info("successfully deleted the instance")
+		log.V(4).Info("successfully deleted the vm")
 		s.Scope.DeleteLongRunningOperationState(instanceID, serviceName)
 		return nil
 	}
 
-	// since the future was nil, there is no ongoing activity; start deleting the instance
+	// since the future was nil, there is no ongoing activity; start deleting the vm
 	future, err := s.Client.DeleteAsync(ctx, resourceGroup, vmssName, instanceID)
 	if err != nil {
 		if azure.ResourceNotFound(err) {
 			// already deleted
 			return nil
 		}
-		return errors.Wrapf(err, "failed to delete instance %s/%s", vmssName, instanceID)
+		return errors.Wrapf(err, "failed to delete vm %s/%s", vmssName, instanceID)
 	}
 
 	s.Scope.SetLongRunningOperationState(future)
 
-	log.V(4).Info("checking if the instance is done deleting")
+	log.V(4).Info("checking if the vm is done deleting")
 	if _, err := s.Client.GetResultIfDone(ctx, future); err != nil {
-		// fetch instance to update status
+		// fetch vm to update status
 		return errors.Wrap(err, "failed to get result of long running operation")
 	}
 
