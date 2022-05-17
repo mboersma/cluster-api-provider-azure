@@ -157,8 +157,13 @@ func (s *Service) deleteVMSSFlexVM(ctx context.Context, resourceID string) error
 		return errors.Wrap(err, fmt.Sprintf("failed to parse resource id %q", resourceID))
 	}
 
+	resourceGroup := parsed.ResourceGroup
+	resourceName := strings.TrimPrefix(s.Scope.ProviderID(), azure.ProviderIDPrefix)
+	resourceNameSplits := strings.Split(resourceName, "/")
+	resourceName = resourceNameSplits[len(resourceNameSplits)-3] + "_" + resourceNameSplits[len(resourceNameSplits)-1]
+
 	log.V(4).Info("entering delete")
-	future := s.Scope.GetLongRunningOperationState(parsed.ResourceName, serviceName)
+	future := s.Scope.GetLongRunningOperationState(resourceName, serviceName)
 	if future != nil {
 		if future.Type != infrav1.DeleteFuture {
 			return azure.WithTransientError(errors.New("attempting to delete, non-delete operation in progress"), 30*time.Second)
@@ -172,14 +177,15 @@ func (s *Service) deleteVMSSFlexVM(ctx context.Context, resourceID string) error
 
 		// there was no error in fetching the result, the future has been completed
 		log.V(4).Info("successfully deleted the vm")
-		s.Scope.DeleteLongRunningOperationState(parsed.ResourceName, serviceName)
+		s.Scope.DeleteLongRunningOperationState(resourceName, serviceName)
 		return nil
 	}
 	// since the future was nil, there is no ongoing activity; start deleting the vm
+	log.V(4).Info("vmss delete vm future is nil") // This is always true
 
 	vmGetter := &VMSSFlexVMGetter{
-		Name:          parsed.ResourceName,
-		ResourceGroup: parsed.ResourceGroup,
+		Name:          resourceName,
+		ResourceGroup: resourceGroup,
 	}
 
 	sdkFuture, err := s.VMClient.DeleteAsync(ctx, vmGetter)
@@ -188,19 +194,19 @@ func (s *Service) deleteVMSSFlexVM(ctx context.Context, resourceID string) error
 			// already deleted
 			return nil
 		}
-		return errors.Wrapf(err, "failed to delete vm %s/%s", parsed.ResourceGroup, parsed.ResourceName)
+		return errors.Wrapf(err, "failed to delete vm %s/%s", resourceGroup, resourceName)
 	}
 
 	if sdkFuture != nil {
-		future, err = converters.SDKToFuture(sdkFuture, infrav1.DeleteFuture, serviceName, vmGetter.Name, vmGetter.ResourceName())
+		future, err = converters.SDKToFuture(sdkFuture, infrav1.DeleteFuture, serviceName, vmGetter.ResourceName(), vmGetter.ResourceGroupName())
 		if err != nil {
-			return errors.Wrapf(err, "failed to covert SDK to Future %s/%s", parsed.ResourceGroup, parsed.ResourceName)
+			return errors.Wrapf(err, "failed to covert SDK to Future %s/%s", resourceGroup, resourceName)
 		}
 		s.Scope.SetLongRunningOperationState(future)
 		return nil
 	}
 
-	s.Scope.DeleteLongRunningOperationState(parsed.ResourceName, serviceName)
+	s.Scope.DeleteLongRunningOperationState(resourceName, serviceName)
 	return nil
 }
 

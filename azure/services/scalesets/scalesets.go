@@ -268,10 +268,23 @@ func (s *Service) patchVMSSIfNeeded(ctx context.Context, infraVMSS *azure.VMSS) 
 	}
 
 	hasModelChanges := hasModelModifyingDifferences(infraVMSS, vmss)
-	if maxSurge > 0 && (hasModelChanges || !infraVMSS.HasEnoughLatestModelOrNotMixedModel()) {
+	var isFlex bool
+	for _, instance := range infraVMSS.Instances {
+		if instance.InstanceID == "" {
+			isFlex = true
+			break
+		}
+	}
+	var hasEnoughLatestModelOrNotMixedModel bool
+	if isFlex {
+		hasEnoughLatestModelOrNotMixedModel = true
+	} else {
+		hasEnoughLatestModelOrNotMixedModel = infraVMSS.HasEnoughLatestModelOrNotMixedModel()
+	}
+	if maxSurge > 0 && (hasModelChanges || !hasEnoughLatestModelOrNotMixedModel) {
 		// surge capacity with the intention of lowering during instance reconciliation
 		surge := spec.Capacity + int64(maxSurge)
-		log.V(4).Info("surging...", "surge", surge)
+		log.V(4).Info("surging...", "surge", surge, "hasModelChanges", hasModelChanges, "hasEnoughLatestModelOrNotMixedModel", hasEnoughLatestModelOrNotMixedModel)
 		patch.Sku.Capacity = to.Int64Ptr(surge)
 	}
 
