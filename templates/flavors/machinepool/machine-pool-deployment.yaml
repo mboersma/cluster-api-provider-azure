@@ -29,9 +29,8 @@ spec:
   strategy:
     type: RollingUpdate
     rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 1
-      deletePolicy: Oldest
+      maxSurge: 0%
+      maxUnavailable: 0
   template:
     vmSize: ${AZURE_NODE_MACHINE_TYPE}
     osDisk:
