@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha4
 
 import (
+	apiconversion "k8s.io/apimachinery/pkg/conversion"
 	infrav1exp "sigs.k8s.io/cluster-api-provider-azure/exp/api/v1beta1"
 	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
@@ -43,6 +44,15 @@ func (src *AzureMachinePool) ConvertTo(dstRaw conversion.Hub) error {
 		dst.Status.Image.ComputeGallery = restored.Status.Image.ComputeGallery
 	}
 
+	for i, r := range restored.Status.LongRunningOperationStates {
+		if r.Name == dst.Status.LongRunningOperationStates[i].Name {
+			dst.Status.LongRunningOperationStates[i].ServiceName = r.ServiceName
+		}
+	}
+
+	// Restore list of virtual network peerings
+	dst.Spec.OrchestrationMode = restored.Spec.OrchestrationMode
+
 	return nil
 }
 
@@ -54,7 +64,15 @@ func (dst *AzureMachinePool) ConvertFrom(srcRaw conversion.Hub) error {
 	}
 
 	// Preserve Hub data on down-conversion.
-	return utilconversion.MarshalData(src, dst)
+	if err := utilconversion.MarshalData(src, dst); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func Convert_v1beta1_AzureMachinePoolSpec_To_v1alpha4_AzureMachinePoolSpec(in *infrav1exp.AzureMachinePoolSpec, out *AzureMachinePoolSpec, s apiconversion.Scope) error {
+	return autoConvert_v1beta1_AzureMachinePoolSpec_To_v1alpha4_AzureMachinePoolSpec(in, out, s)
 }
 
 // ConvertTo converts this AzureMachinePool to the Hub version (v1beta1).

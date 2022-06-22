@@ -18,19 +18,41 @@ package v1alpha4
 
 import (
 	infrav1exp "sigs.k8s.io/cluster-api-provider-azure/exp/api/v1beta1"
+	utilconversion "sigs.k8s.io/cluster-api/util/conversion"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 
 // ConvertTo converts this AzureMachinePoolMachine to the Hub version (v1beta1).
-func (src *AzureMachinePoolMachine) ConvertTo(dstRaw conversion.Hub) error {
+func (src *AzureMachinePoolMachine) ConvertTo(dstRaw conversion.Hub) error { // nolint
 	dst := dstRaw.(*infrav1exp.AzureMachinePoolMachine)
-	return Convert_v1alpha4_AzureMachinePoolMachine_To_v1beta1_AzureMachinePoolMachine(src, dst, nil)
+
+	if err := Convert_v1alpha4_AzureMachinePoolMachine_To_v1beta1_AzureMachinePoolMachine(src, dst, nil); err != nil {
+		return err
+	}
+
+	// Manually restore data.
+	restored := &infrav1exp.AzureMachinePoolMachine{}
+	if ok, err := utilconversion.UnmarshalData(src, restored); err != nil || !ok {
+		return err
+	}
+
+	return nil
 }
 
 // ConvertFrom converts from the Hub version (v1beta1) to this version.
-func (dst *AzureMachinePoolMachine) ConvertFrom(srcRaw conversion.Hub) error {
+func (dst *AzureMachinePoolMachine) ConvertFrom(srcRaw conversion.Hub) error { // nolint
 	src := srcRaw.(*infrav1exp.AzureMachinePoolMachine)
-	return Convert_v1beta1_AzureMachinePoolMachine_To_v1alpha4_AzureMachinePoolMachine(src, dst, nil)
+
+	if err := Convert_v1beta1_AzureMachinePoolMachine_To_v1alpha4_AzureMachinePoolMachine(src, dst, nil); err != nil {
+		return err
+	}
+
+	// Preserve Hub data on down-conversion.
+	if err := utilconversion.MarshalData(src, dst); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ConvertTo converts this AzureMachinePoolMachineList to the Hub version (v1beta1).
