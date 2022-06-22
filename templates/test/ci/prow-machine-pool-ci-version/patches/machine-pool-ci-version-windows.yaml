@@ -4,6 +4,11 @@ kind: AzureMachinePool
 metadata:
   name: ${CLUSTER_NAME}-mp-win
 spec:
+  strategy:
+    rollingUpdate:
+      maxSurge: 0%
+      maxUnavailable: 0
+    type: RollingUpdate
   template:
     image:
       # we use the latest image as a workaround there is no published marketplace image for k8s CI versions.
