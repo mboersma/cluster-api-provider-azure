@@ -1,0 +1,41 @@
+name: Rebase VMSS Flex Branch
+on:
+  schedule:
+  - cron: "0 0 * * *"
+  workflow_dispatch:
+jobs:
+  sync:
+    name: Rebase on Upstream
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out target branch
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 10
+        ref: vmss-flex-cloudprovider
+    - name: Rebase on upstream branch
+      env:
+        DEPTH: 100
+        BRANCH: main
+        PUSH: "true"
+      run: |
+        if [ -z $UPSTREAM ]; then
+          echo ${{ github.token }} | gh auth login --with-token
+          UPSTREAM=$(gh api repos/:owner/:repo --jq .parent.full_name)
+          if [ -z $UPSTREAM ]; then echo "Can't find upstream" >&2 && exit 1; fi
+        fi
+        if [ ! $(echo $UPSTREAM | egrep '^(http|git@)') ]; then
+          UPSTREAM=https://github.com/$UPSTREAM.git
+        fi
+        if [ -n ${{ env.DEPTH }} ] && [ ${{ env.DEPTH }} -ne "0" ]; then
+          DEPTH_FLAG="--depth=${{ env.DEPTH }}"
+        fi
+        git remote add upstream $UPSTREAM
+        git fetch upstream ${{ env.BRANCH }} $DEPTH_FLAG
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name  "GitHub Actions"
+        git rebase upstream/${{ env.BRANCH }}
+        if [ "${{ env.PUSH }}" = "true" -a "$(git status | grep diverged)" ]; then
+            git push origin $(git branch --show-current) --force-with-lease
+        fi
+
