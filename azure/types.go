@@ -198,10 +198,9 @@ func (vm VMSSVM) ProviderID() string {
 	if vm.InstanceID == "" {
 		// build providerID a bit differently for VMSS Flex
 		splitOnSlash := strings.Split(vm.ID, "/")
-		lastSplit := splitOnSlash[len(splitOnSlash)-1]
-		vmIDWithoutEnd := strings.TrimRight(vm.ID, lastSplit)
-		splitsOnUnderscore := strings.Split(lastSplit, "_")
-		return ProviderIDPrefix + vmIDWithoutEnd + splitsOnUnderscore[len(splitsOnUnderscore)-1]
+		elems := splitOnSlash[:len(splitOnSlash)-4]
+		elems = append(elems, splitOnSlash[len(splitOnSlash)-2:]...)
+		return ProviderIDPrefix + strings.Join(elems, "/")
 	}
 	return ProviderIDPrefix + vm.ID
 }

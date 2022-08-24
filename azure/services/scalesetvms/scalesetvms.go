@@ -84,9 +84,6 @@ func (s *Service) Reconcile(ctx context.Context) error {
 		// this means we are using VMSS Flex and need to fetch by resource ID
 		// fetch the latest data about the vm -- model mutations are handled by the AzureMachinePoolReconciler
 		resourceID := strings.TrimPrefix(providerID, azure.ProviderIDPrefix)
-		resourceIDSplits := strings.Split(resourceID, "/")
-		resourceID = strings.TrimSuffix(resourceID, resourceIDSplits[len(resourceIDSplits)-1])
-		resourceID = resourceID + resourceIDSplits[len(resourceIDSplits)-3] + "_" + resourceIDSplits[len(resourceIDSplits)-1]
 		vm, err := s.VMClient.GetByID(ctx, resourceID)
 		if err != nil {
 			if azure.ResourceNotFound(err) {
