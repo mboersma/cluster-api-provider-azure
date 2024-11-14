@@ -16,11 +16,12 @@ aliases:
     - vincepri
   cluster-api-azure-maintainers:
     - jackfrancis
-    - mboersma
-    - nojnhuh
     - Jont828
-    - willie-yao
+    - mboersma
     - nawazkh
+    - nojnhuh
+    - willie-yao
   cluster-api-azure-reviewers:
+    - bryan-cox
     - jsturtevant
     - marosset
