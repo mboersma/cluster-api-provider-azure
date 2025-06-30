@@ -1,6 +1,8 @@
 name: Weekly security scan
 
 on:
+  workflow_dispatch:
+    # Allows manual triggering of the workflow.
   schedule:
     # Cron for every Monday at 12:00 UTC.
     - cron: "0 12 * * 1"
