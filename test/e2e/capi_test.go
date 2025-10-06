@@ -212,7 +212,7 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 					return capi_e2e.ClusterctlUpgradeSpecInput{
 						E2EConfig:                 e2eConfig,
 						ClusterctlConfigPath:      clusterctlConfigPath,
-						WorkloadFlavor:            "machine-and-machine-pool",
+						WorkloadFlavor:            "machine-pool-flex",
 						BootstrapClusterProxy:     bootstrapClusterProxy,
 						ArtifactFolder:            artifactFolder,
 						SkipCleanup:               skipCleanup,
@@ -237,7 +237,7 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 					return capi_e2e.ClusterctlUpgradeSpecInput{
 						E2EConfig:                 e2eConfig,
 						ClusterctlConfigPath:      clusterctlConfigPath,
-						WorkloadFlavor:            "machine-and-machine-pool",
+						WorkloadFlavor:            "machine-pool-flex",
 						BootstrapClusterProxy:     bootstrapClusterProxy,
 						ArtifactFolder:            artifactFolder,
 						SkipCleanup:               skipCleanup,
