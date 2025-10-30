@@ -50,7 +50,7 @@ func AKSSpotSpec(ctx context.Context, inputGetter func() AKSSpotSpecInput) {
 	Expect(mgmtClient).NotTo(BeNil())
 
 	infraControlPlane := &infrav1.AzureManagedControlPlane{}
-	err := mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
+	err := mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
 	Expect(err).NotTo(HaveOccurred())
 
 	scaling := infrav1.ManagedMachinePoolScaling{
@@ -98,7 +98,7 @@ func AKSSpotSpec(ctx context.Context, inputGetter func() AKSSpotSpecInput) {
 						Kind:       "AzureManagedMachinePool",
 						Name:       infraMachinePool.Name,
 					},
-					Version: ptr.To(input.KubernetesVersion),
+					Version: input.KubernetesVersion,
 				},
 			},
 		},

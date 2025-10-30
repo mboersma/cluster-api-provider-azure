@@ -99,7 +99,7 @@ func AzureSecurityGroupsSpec(ctx context.Context, inputGetter func() AzureSecuri
 
 	azureCluster := &infrav1.AzureCluster{}
 	err = mgmtClient.Get(ctx, client.ObjectKey{
-		Namespace: input.Cluster.Spec.InfrastructureRef.Namespace,
+		Namespace: input.Cluster.Namespace,
 		Name:      input.Cluster.Spec.InfrastructureRef.Name,
 	}, azureCluster)
 	Expect(err).NotTo(HaveOccurred())

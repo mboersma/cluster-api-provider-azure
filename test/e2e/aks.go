@@ -72,7 +72,7 @@ func DiscoverAndWaitForAKSControlPlaneInitialized(ctx context.Context, input Dis
 	Expect(input.Lister).NotTo(BeNil(), "Invalid argument. input.Lister can't be nil when calling DiscoverAndWaitForAKSControlPlaneInitialized")
 	Expect(input.Cluster).NotTo(BeNil(), "Invalid argument. input.Cluster can't be nil when calling DiscoverAndWaitForAKSControlPlaneInitialized")
 
-	controlPlaneNamespace := input.Cluster.Spec.ControlPlaneRef.Namespace
+	controlPlaneNamespace := input.Cluster.Namespace
 	controlPlaneName := input.Cluster.Spec.ControlPlaneRef.Name
 
 	Logf("Waiting for the first AKS machine in the %s/%s 'system' node pool to exist", controlPlaneNamespace, controlPlaneName)
@@ -91,7 +91,7 @@ func DiscoverAndWaitForAKSControlPlaneReady(ctx context.Context, input DiscoverA
 	Expect(input.Lister).NotTo(BeNil(), "Invalid argument. input.Lister can't be nil when calling DiscoverAndWaitForAKSControlPlaneReady")
 	Expect(input.Cluster).NotTo(BeNil(), "Invalid argument. input.Cluster can't be nil when calling DiscoverAndWaitForAKSControlPlaneReady")
 
-	controlPlaneNamespace := input.Cluster.Spec.ControlPlaneRef.Namespace
+	controlPlaneNamespace := input.Cluster.Namespace
 	controlPlaneName := input.Cluster.Spec.ControlPlaneRef.Name
 
 	Logf("Waiting for all AKS machines in the %s/%s 'system' node pool to exist", controlPlaneNamespace, controlPlaneName)

@@ -60,12 +60,12 @@ func EnsureDaemonsets(ctx context.Context, inputGetter func() DaemonsetsSpecInpu
 	})
 	kubeadmControlPlane := &kubeadmv1.KubeadmControlPlane{}
 	key := client.ObjectKey{
-		Namespace: cluster.Spec.ControlPlaneRef.Namespace,
+		Namespace: cluster.Namespace,
 		Name:      cluster.Spec.ControlPlaneRef.Name,
 	}
 	Eventually(func() error {
 		return mgmtClient.Get(ctx, key, kubeadmControlPlane)
-	}, e2eConfig.GetIntervals(specName, "wait-daemonset")...).Should(Succeed(), "Failed to get KubeadmControlPlane object %s/%s", cluster.Spec.ControlPlaneRef.Namespace, cluster.Spec.ControlPlaneRef.Name)
+	}, e2eConfig.GetIntervals(specName, "wait-daemonset")...).Should(Succeed(), "Failed to get KubeadmControlPlane object %s/%s", cluster.Namespace, cluster.Spec.ControlPlaneRef.Name)
 
 	workloadClusterProxy := input.BootstrapClusterProxy.GetWorkloadCluster(ctx, input.Namespace.Name, input.ClusterName)
 	By("Waiting for all DaemonSet Pods to be Running")

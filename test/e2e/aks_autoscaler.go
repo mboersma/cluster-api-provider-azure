@@ -52,7 +52,7 @@ func AKSAutoscaleSpec(ctx context.Context, inputGetter func() AKSAutoscaleSpecIn
 
 	amcp := &infrav1.AzureManagedControlPlane{}
 	err = mgmtClient.Get(ctx, types.NamespacedName{
-		Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace,
+		Namespace: input.Cluster.Namespace,
 		Name:      input.Cluster.Spec.ControlPlaneRef.Name,
 	}, amcp)
 	Expect(err).NotTo(HaveOccurred())

@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
 	kubeadmv1 "sigs.k8s.io/cluster-api/api/controlplane/kubeadm/v1beta1"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -146,7 +147,7 @@ type cleanupInput struct {
 	ArtifactFolder         string
 	Namespace              *corev1.Namespace
 	CancelWatches          context.CancelFunc
-	Cluster                *clusterv1beta1.Cluster
+	Cluster                *clusterv1.Cluster
 	IntervalsGetter        func(spec, key string) []interface{}
 	SkipCleanup            bool
 	SkipLogCollection      bool
@@ -269,15 +270,15 @@ func EnsureControlPlaneInitialized(ctx context.Context, input clusterctl.ApplyCu
 	})
 	kubeadmControlPlane := &kubeadmv1.KubeadmControlPlane{}
 	key := client.ObjectKey{
-		Namespace: cluster.Spec.ControlPlaneRef.Namespace,
+		Namespace: cluster.Namespace,
 		Name:      cluster.Spec.ControlPlaneRef.Name,
 	}
 
 	By("Ensuring KubeadmControlPlane is initialized")
 	Eventually(func(g Gomega) {
-		g.Expect(getter.Get(ctx, key, kubeadmControlPlane)).To(Succeed(), "Failed to get KubeadmControlPlane object %s/%s", cluster.Spec.ControlPlaneRef.Namespace, cluster.Spec.ControlPlaneRef.Name)
+		g.Expect(getter.Get(ctx, key, kubeadmControlPlane)).To(Succeed(), "Failed to get KubeadmControlPlane object %s/%s", cluster.Namespace, cluster.Spec.ControlPlaneRef.Name)
 		g.Expect(kubeadmControlPlane.Status.Initialized).To(BeTrue(), "KubeadmControlPlane is not yet initialized")
-	}, input.WaitForControlPlaneIntervals...).Should(Succeed(), "KubeadmControlPlane object %s/%s was not initialized in time", cluster.Spec.ControlPlaneRef.Namespace, cluster.Spec.ControlPlaneRef.Name)
+	}, input.WaitForControlPlaneIntervals...).Should(Succeed(), "KubeadmControlPlane object %s/%s was not initialized in time", cluster.Namespace, cluster.Spec.ControlPlaneRef.Name)
 
 	By("Ensuring API Server is reachable before applying Helm charts")
 	Eventually(func(g Gomega) {
@@ -303,12 +304,12 @@ func ensureContolPlaneReplicasMatch(ctx context.Context, proxy framework.Cluster
 	inClustersNamespaceListOption := client.InNamespace(ns)
 	// ControlPlane labels
 	matchClusterListOption := client.MatchingLabels{
-		clusterv1beta1.MachineControlPlaneLabel: "",
-		clusterv1beta1.ClusterNameLabel:         clusterName,
+		clusterv1.MachineControlPlaneLabel: "",
+		clusterv1.ClusterNameLabel:         clusterName,
 	}
 
 	Eventually(func() (int, error) {
-		machineList := &clusterv1beta1.MachineList{}
+		machineList := &clusterv1.MachineList{}
 		lister := proxy.GetClient()
 		if err := lister.List(ctx, machineList, inClustersNamespaceListOption, matchClusterListOption); err != nil {
 			Logf("Failed to list the machines: %+v", err)
@@ -316,7 +317,7 @@ func ensureContolPlaneReplicasMatch(ctx context.Context, proxy framework.Cluster
 		}
 		count := 0
 		for _, machine := range machineList.Items {
-			if condition := v1beta1conditions.Get(&machine, clusterv1beta1.MachineReadyV1Beta2Condition); condition != nil && condition.Status == corev1.ConditionTrue {
+			if condition := v1beta1conditions.Get(&machine, clusterv1.MachineReadyCondition); condition != nil && condition.Status == corev1.ConditionTrue {
 				count++
 			}
 		}

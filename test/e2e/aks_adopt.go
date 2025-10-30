@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	clusterctlv1 "sigs.k8s.io/cluster-api/cmd/clusterctl/api/v1alpha3"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
@@ -92,14 +93,14 @@ func AKSAdoptSpec(ctx context.Context, inputGetter func() AKSAdoptSpecInput) {
 	cluster := input.Cluster
 	Eventually(func(g Gomega) {
 		g.Expect(mgmtClient.Get(ctx, client.ObjectKeyFromObject(cluster), cluster)).To(Succeed())
-		cluster.Spec.Paused = true
+		cluster.Spec.Paused = ptr.To(true)
 		g.Expect(mgmtClient.Update(ctx, cluster)).To(Succeed())
 	}, updateResource...).Should(Succeed())
 
 	// wait for the pause to take effect before deleting anything
 	amcp := &infrav1.AzureManagedControlPlane{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: cluster.Spec.ControlPlaneRef.Namespace,
+			Namespace: cluster.Namespace,
 			Name:      cluster.Spec.ControlPlaneRef.Name,
 		},
 	}
@@ -137,7 +138,7 @@ func AKSAdoptSpec(ctx context.Context, inputGetter func() AKSAdoptSpecInput) {
 	// AzureManagedCluster never gets a finalizer
 	deleteAndWait(&infrav1.AzureManagedCluster{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace: cluster.Spec.InfrastructureRef.Namespace,
+			Namespace: cluster.Namespace,
 			Name:      cluster.Spec.InfrastructureRef.Name,
 		},
 	})

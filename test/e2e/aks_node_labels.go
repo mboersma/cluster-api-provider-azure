@@ -55,7 +55,7 @@ func AKSNodeLabelsSpec(ctx context.Context, inputGetter func() AKSNodeLabelsSpec
 
 	infraControlPlane := &infrav1.AzureManagedControlPlane{}
 	err = mgmtClient.Get(ctx, client.ObjectKey{
-		Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace,
+		Namespace: input.Cluster.Namespace,
 		Name:      input.Cluster.Spec.ControlPlaneRef.Name,
 	}, infraControlPlane)
 	Expect(err).NotTo(HaveOccurred())

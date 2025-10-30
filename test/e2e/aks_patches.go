@@ -55,7 +55,7 @@ func AKSPatchSpec(ctx context.Context, inputGetter func() AKSPatchSpecInput) {
 
 	infraControlPlane := &infrav1.AzureManagedControlPlane{}
 	err = mgmtClient.Get(ctx, client.ObjectKey{
-		Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace,
+		Namespace: input.Cluster.Namespace,
 		Name:      input.Cluster.Spec.ControlPlaneRef.Name,
 	}, infraControlPlane)
 	Expect(err).NotTo(HaveOccurred())
@@ -125,7 +125,7 @@ func AKSPatchSpec(ctx context.Context, inputGetter func() AKSPatchSpecInput) {
 		By("Enabling preview features on the control plane")
 		var infraControlPlane = &infrav1.AzureManagedControlPlane{}
 		Eventually(func(g Gomega) {
-			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
+			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
 			g.Expect(err).NotTo(HaveOccurred())
 			infraControlPlane.Spec.EnablePreviewFeatures = ptr.To(true)
 			g.Expect(mgmtClient.Update(ctx, infraControlPlane)).To(Succeed())
@@ -139,7 +139,7 @@ func AKSPatchSpec(ctx context.Context, inputGetter func() AKSPatchSpecInput) {
 
 		By("Patching a preview feature on the control plane")
 		Eventually(func(g Gomega) {
-			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
+			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
 			g.Expect(err).NotTo(HaveOccurred())
 			infraControlPlane.Spec.ASOManagedClusterPatches = append(infraControlPlane.Spec.ASOManagedClusterPatches, `{"spec": {"enableNamespaceResources": true}}`)
 			g.Expect(mgmtClient.Update(ctx, infraControlPlane)).To(Succeed())
@@ -147,7 +147,7 @@ func AKSPatchSpec(ctx context.Context, inputGetter func() AKSPatchSpecInput) {
 
 		asoManagedCluster := &asocontainerservicev1preview.ManagedCluster{}
 		Eventually(func(g Gomega) {
-			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: infraControlPlane.Name}, asoManagedCluster)
+			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Namespace, Name: infraControlPlane.Name}, asoManagedCluster)
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(asoManagedCluster.Spec.EnableNamespaceResources).To(HaveValue(BeTrue()))
 		}, input.WaitForUpdate...).Should(Succeed())
@@ -161,7 +161,7 @@ func AKSPatchSpec(ctx context.Context, inputGetter func() AKSPatchSpecInput) {
 
 		By("Disabling preview features on the control plane")
 		Eventually(func(g Gomega) {
-			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
+			err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
 			g.Expect(err).NotTo(HaveOccurred())
 			infraControlPlane.Spec.EnablePreviewFeatures = ptr.To(false)
 			g.Expect(mgmtClient.Update(ctx, infraControlPlane)).To(Succeed())

@@ -34,6 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	typedappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	"k8s.io/utils/ptr"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 )
 
 const (
@@ -229,8 +230,8 @@ func (d *Builder) AddMachinePoolSelectors(machinePoolName string) *Builder {
 		d.deployment.Spec.Template.Spec.NodeSelector = map[string]string{}
 	}
 
-	d.deployment.Spec.Template.Spec.NodeSelector[clusterv1beta1.OwnerKindAnnotation] = "MachinePool"
-	d.deployment.Spec.Template.Spec.NodeSelector[clusterv1beta1.OwnerNameAnnotation] = machinePoolName
+	d.deployment.Spec.Template.Spec.NodeSelector[clusterv1.OwnerKindAnnotation] = "MachinePool"
+	d.deployment.Spec.Template.Spec.NodeSelector[clusterv1.OwnerNameAnnotation] = machinePoolName
 	return d
 }
 

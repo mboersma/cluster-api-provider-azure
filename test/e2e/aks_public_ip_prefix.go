@@ -57,7 +57,7 @@ func AKSPublicIPPrefixSpec(ctx context.Context, inputGetter func() AKSPublicIPPr
 	Expect(mgmtClient).NotTo(BeNil())
 
 	infraControlPlane := &infrav1.AzureManagedControlPlane{}
-	err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
+	err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
 	Expect(err).NotTo(HaveOccurred())
 
 	resourceGroupName := infraControlPlane.Spec.ResourceGroupName
