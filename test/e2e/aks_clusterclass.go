@@ -91,7 +91,7 @@ func AKSClusterClassSpec(ctx context.Context, inputGetter func() AKSClusterClass
 
 	Eventually(func(g Gomega) {
 		err = mgmtClient.Get(ctx, types.NamespacedName{
-			Namespace: input.MachinePool.Spec.Template.Spec.InfrastructureRef.Namespace,
+			Namespace: input.MachinePool.Namespace,
 			Name:      input.MachinePool.Spec.Template.Spec.InfrastructureRef.Name,
 		}, ammp)
 		Expect(err).NotTo(HaveOccurred())

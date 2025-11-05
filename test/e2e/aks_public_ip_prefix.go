@@ -27,7 +27,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v4"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -115,12 +114,12 @@ func AKSPublicIPPrefixSpec(ctx context.Context, inputGetter func() AKSPublicIPPr
 						DataSecretName: ptr.To(""),
 					},
 					ClusterName: input.Cluster.Name,
-					InfrastructureRef: corev1.ObjectReference{
-						APIVersion: infrav1.GroupVersion.String(),
-						Kind:       "AzureManagedMachinePool",
-						Name:       infraMachinePool.Name,
+					InfrastructureRef: clusterv1.ContractVersionedObjectReference{
+						APIGroup: infrav1.GroupVersion.String(),
+						Kind:     "AzureManagedMachinePool",
+						Name:     infraMachinePool.Name,
 					},
-					Version: ptr.To(input.KubernetesVersion),
+					Version: input.KubernetesVersion,
 				},
 			},
 		},

@@ -79,7 +79,7 @@ func AKSMachinePoolSpec(ctx context.Context, inputGetter func() AKSMachinePoolSp
 			case infrav1.AzureManagedMachinePoolKind:
 				ammp := &infrav1.AzureManagedMachinePool{}
 				err := input.MgmtCluster.GetClient().Get(ctx, types.NamespacedName{
-					Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+					Namespace: mp.Namespace,
 					Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
 				}, ammp)
 				Expect(err).NotTo(HaveOccurred())
@@ -90,7 +90,7 @@ func AKSMachinePoolSpec(ctx context.Context, inputGetter func() AKSMachinePoolSp
 			case infrav1.AzureASOManagedMachinePoolKind:
 				ammp := &infrav1.AzureASOManagedMachinePool{}
 				err := input.MgmtCluster.GetClient().Get(ctx, types.NamespacedName{
-					Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+					Namespace: mp.Namespace,
 					Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
 				}, ammp)
 				Expect(err).NotTo(HaveOccurred())

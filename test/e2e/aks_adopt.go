@@ -108,7 +108,7 @@ func AKSAdoptSpec(ctx context.Context, inputGetter func() AKSAdoptSpecInput) {
 	for _, mp := range input.MachinePools {
 		ammp := &infrav1.AzureManagedMachinePool{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+				Namespace: mp.Namespace,
 				Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
 			},
 		}
@@ -122,7 +122,7 @@ func AKSAdoptSpec(ctx context.Context, inputGetter func() AKSAdoptSpecInput) {
 
 		ammp := &infrav1.AzureManagedMachinePool{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+				Namespace: mp.Namespace,
 				Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
 			},
 		}

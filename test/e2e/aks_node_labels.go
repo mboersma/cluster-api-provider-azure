@@ -70,7 +70,7 @@ func AKSNodeLabelsSpec(ctx context.Context, inputGetter func() AKSNodeLabelsSpec
 
 			ammp := &infrav1.AzureManagedMachinePool{}
 			Expect(mgmtClient.Get(ctx, types.NamespacedName{
-				Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+				Namespace: mp.Namespace,
 				Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
 			}, ammp)).To(Succeed())
 

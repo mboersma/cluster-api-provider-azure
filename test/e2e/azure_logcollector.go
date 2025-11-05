@@ -118,7 +118,7 @@ func collectAzureMachineLog(ctx context.Context, managementClusterClient client.
 		return fmt.Errorf("get AzureMachine %s/%s: %w", m.Spec.InfrastructureRef.Namespace, m.Spec.InfrastructureRef.Name, err)
 	}
 
-	cluster, err := clusterv1beta1util.GetClusterFromMetadata(ctx, managementClusterClient, m.ObjectMeta)
+	cluster, err := clusterv1.GetClusterFromMetadata(ctx, managementClusterClient, m.ObjectMeta)
 	if err != nil {
 		return err
 	}
@@ -137,10 +137,10 @@ func collectAzureMachineLog(ctx context.Context, managementClusterClient client.
 func collectAzureMachinePoolLog(ctx context.Context, managementClusterClient client.Client, mp *clusterv1.MachinePool, outputPath string) error {
 	am, err := getAzureMachinePool(ctx, managementClusterClient, mp)
 	if err != nil {
-		return fmt.Errorf("get AzureMachinePool %s/%s: %w", mp.Spec.Template.Spec.InfrastructureRef.Namespace, mp.Spec.Template.Spec.InfrastructureRef.Name, err)
+		return fmt.Errorf("get AzureMachinePool %s/%s: %w", mp.Namespace, mp.Spec.Template.Spec.InfrastructureRef.Name, err)
 	}
 
-	cluster, err := clusterv1beta1util.GetClusterFromMetadata(ctx, managementClusterClient, mp.ObjectMeta)
+	cluster, err := clusterv1.GetClusterFromMetadata(ctx, managementClusterClient, mp.ObjectMeta)
 	if err != nil {
 		return err
 	}
@@ -404,7 +404,7 @@ func getAzureMachine(ctx context.Context, managementClusterClient client.Client,
 
 func getAzureMachinePool(ctx context.Context, managementClusterClient client.Client, mp *clusterv1.MachinePool) (*infrav1exp.AzureMachinePool, error) {
 	key := client.ObjectKey{
-		Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+		Namespace: mp.Namespace,
 		Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
 	}
 
