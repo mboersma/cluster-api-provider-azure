@@ -28,9 +28,9 @@ providers:
     - name: v1.11.3
       value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.11.3/core-components.yaml
       type: url
-      contract: v1beta1
+      contract: v1beta2
       files:
-      - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+      - sourcePath: "../data/shared/v1beta2/metadata.yaml"
       replacements:
       - old: "imagePullPolicy: Always"
         new: "imagePullPolicy: IfNotPresent"
@@ -51,9 +51,9 @@ providers:
     - name: v1.11.3
       value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.11.3/bootstrap-components.yaml
       type: url
-      contract: v1beta1
+      contract: v1beta2
       files:
-      - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+      - sourcePath: "../data/shared/v1beta2/metadata.yaml"
       replacements:
       - old: "imagePullPolicy: Always"
         new: "imagePullPolicy: IfNotPresent"
@@ -73,9 +73,9 @@ providers:
     - name: v1.11.3
       value: https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.11.3/control-plane-components.yaml
       type: url
-      contract: v1beta1
+      contract: v1beta2
       files:
-      - sourcePath: "../data/shared/v1beta1/metadata.yaml"
+      - sourcePath: "../data/shared/v1beta2/metadata.yaml"
       replacements:
       - old: "imagePullPolicy: Always"
         new: "imagePullPolicy: IfNotPresent"
@@ -115,9 +115,9 @@ providers:
         new: "imagePullPolicy: IfNotPresent"
     - name: v1.22.99 # "vNext"; use manifests from local source files
       value: "${PWD}/config/default"
-      contract: v1beta1
+      contract: v1beta2
       files:
-      - sourcePath: "../data/shared/v1beta1_provider/metadata.yaml"
+      - sourcePath: "../data/shared/v1beta2_provider/metadata.yaml"
       - sourcePath: "${PWD}/templates/test/ci/cluster-template-prow.yaml"
         targetName: "cluster-template.yaml"
       - sourcePath: "../data/infrastructure-azure/v1beta1/cluster-template.yaml"
@@ -210,9 +210,9 @@ providers:
     - name: v0.4.1
       value: https://github.com/kubernetes-sigs/cluster-api-addon-provider-helm/releases/download/v0.4.1/addon-components.yaml
       type: url
-      contract: v1beta1
+      contract: v1beta2
       files:
-      - sourcePath: "../data/shared/v1beta1_addon_provider/metadata.yaml"
+      - sourcePath: "../data/shared/v1beta2_addon_provider/metadata.yaml"
       replacements:
       - old: "imagePullPolicy: Always"
         new: "imagePullPolicy: IfNotPresent"

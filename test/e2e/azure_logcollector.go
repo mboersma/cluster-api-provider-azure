@@ -33,8 +33,9 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
-	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta2"
+	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	"sigs.k8s.io/cluster-api/test/framework"
+	"sigs.k8s.io/cluster-api/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	kinderrors "sigs.k8s.io/kind/pkg/errors"
 
@@ -56,13 +57,11 @@ var _ framework.ClusterLogCollector = &AzureLogCollector{}
 
 // CollectMachineLog collects logs from a machine.
 func (k AzureLogCollector) CollectMachineLog(ctx context.Context, managementClusterClient client.Client, m *clusterv1.Machine, outputPath string) error {
-	infraGV, err := schema.ParseGroupVersion(m.Spec.InfrastructureRef.APIVersion)
-	if err != nil {
-		return fmt.Errorf("invalid spec.infrastructureRef.apiVersion %q: %w", m.Spec.InfrastructureRef.APIVersion, err)
-	}
+	// In v1beta2, ContractVersionedObjectReference no longer has APIVersion field.
+	// For Azure infrastructure, we know the API group is infrastructure.cluster.x-k8s.io/v1beta1
 	infraKind := m.Spec.InfrastructureRef.Kind
 	infraGK := schema.GroupKind{
-		Group: infraGV.Group,
+		Group: infrav1.GroupVersion.Group,
 		Kind:  infraKind,
 	}
 
@@ -72,7 +71,7 @@ func (k AzureLogCollector) CollectMachineLog(ctx context.Context, managementClus
 	case infrav1exp.GroupVersion.WithKind(infrav1exp.AzureMachinePoolMachineKind).GroupKind():
 		// Logs collected for AzureMachinePool
 	default:
-		Logf("Unknown machine infra kind: %s", infraGV.WithKind(infraKind))
+		Logf("Unknown machine infra kind: %s/%s", infraGK.Group, infraKind)
 	}
 
 	return nil
@@ -80,13 +79,11 @@ func (k AzureLogCollector) CollectMachineLog(ctx context.Context, managementClus
 
 // CollectMachinePoolLog collects logs from a machine pool.
 func (k AzureLogCollector) CollectMachinePoolLog(ctx context.Context, managementClusterClient client.Client, mp *clusterv1.MachinePool, outputPath string) error {
-	infraGV, err := schema.ParseGroupVersion(mp.Spec.Template.Spec.InfrastructureRef.APIVersion)
-	if err != nil {
-		return fmt.Errorf("invalid spec.infrastructureRef.apiVersion %q: %w", mp.Spec.Template.Spec.InfrastructureRef.APIVersion, err)
-	}
+	// In v1beta2, ContractVersionedObjectReference no longer has APIVersion field.
+	// For Azure infrastructure, we know the API group is infrastructure.cluster.x-k8s.io/v1beta1
 	infraKind := mp.Spec.Template.Spec.InfrastructureRef.Kind
 	infraGK := schema.GroupKind{
-		Group: infraGV.Group,
+		Group: infrav1.GroupVersion.Group,
 		Kind:  infraKind,
 	}
 
@@ -100,7 +97,7 @@ func (k AzureLogCollector) CollectMachinePoolLog(ctx context.Context, management
 		// AKS node logs aren't accessible.
 		Logf("Skipping logs for %s", infrav1.AzureASOManagedMachinePoolKind)
 	default:
-		Logf("Unknown machine pool infra kind: %s", infraGV.WithKind(infraKind))
+		Logf("Unknown machine pool infra kind: %s/%s", infraGK.Group, infraKind)
 	}
 
 	return nil
@@ -115,17 +112,19 @@ func (k AzureLogCollector) CollectInfrastructureLogs(_ context.Context, _ client
 func collectAzureMachineLog(ctx context.Context, managementClusterClient client.Client, m *clusterv1.Machine, outputPath string) error {
 	am, err := getAzureMachine(ctx, managementClusterClient, m)
 	if err != nil {
-		return fmt.Errorf("get AzureMachine %s/%s: %w", m.Spec.InfrastructureRef.Namespace, m.Spec.InfrastructureRef.Name, err)
+		// In v1beta2, references don't have Namespace field - use parent's namespace
+		return fmt.Errorf("get AzureMachine %s/%s: %w", m.Namespace, m.Spec.InfrastructureRef.Name, err)
 	}
 
-	cluster, err := clusterv1.GetClusterFromMetadata(ctx, managementClusterClient, m.ObjectMeta)
+	cluster, err := util.GetClusterFromMetadata(ctx, managementClusterClient, m.ObjectMeta)
 	if err != nil {
 		return err
 	}
 
-	azureCluster, err := getAzureCluster(ctx, managementClusterClient, cluster.Spec.InfrastructureRef.Namespace, cluster.Spec.InfrastructureRef.Name)
+	// In v1beta2, references don't have Namespace field - use parent's namespace
+	azureCluster, err := getAzureCluster(ctx, managementClusterClient, cluster.Namespace, cluster.Spec.InfrastructureRef.Name)
 	if err != nil {
-		return fmt.Errorf("get AzureCluster %s/%s: %w", cluster.Spec.InfrastructureRef.Namespace, cluster.Spec.InfrastructureRef.Name, err)
+		return fmt.Errorf("get AzureCluster %s/%s: %w", cluster.Namespace, cluster.Spec.InfrastructureRef.Name, err)
 	}
 	subscriptionID := azureCluster.Spec.SubscriptionID
 	resourceGroup := azureCluster.Spec.ResourceGroup
@@ -140,14 +139,15 @@ func collectAzureMachinePoolLog(ctx context.Context, managementClusterClient cli
 		return fmt.Errorf("get AzureMachinePool %s/%s: %w", mp.Namespace, mp.Spec.Template.Spec.InfrastructureRef.Name, err)
 	}
 
-	cluster, err := clusterv1.GetClusterFromMetadata(ctx, managementClusterClient, mp.ObjectMeta)
+	cluster, err := util.GetClusterFromMetadata(ctx, managementClusterClient, mp.ObjectMeta)
 	if err != nil {
 		return err
 	}
 
-	azureCluster, err := getAzureCluster(ctx, managementClusterClient, cluster.Spec.InfrastructureRef.Namespace, cluster.Spec.InfrastructureRef.Name)
+	// In v1beta2, references don't have Namespace field - use parent's namespace
+	azureCluster, err := getAzureCluster(ctx, managementClusterClient, cluster.Namespace, cluster.Spec.InfrastructureRef.Name)
 	if err != nil {
-		return fmt.Errorf("get AzureCluster %s/%s: %w", cluster.Spec.InfrastructureRef.Namespace, cluster.Spec.InfrastructureRef.Name, err)
+		return fmt.Errorf("get AzureCluster %s/%s: %w", cluster.Namespace, cluster.Spec.InfrastructureRef.Name, err)
 	}
 	subscriptionID := azureCluster.Spec.SubscriptionID
 	resourceGroup := azureCluster.Spec.ResourceGroup
@@ -392,8 +392,9 @@ func getAzureASOManagedCluster(ctx context.Context, managementClusterClient clie
 }
 
 func getAzureMachine(ctx context.Context, managementClusterClient client.Client, m *clusterv1.Machine) (*infrav1.AzureMachine, error) {
+	// In v1beta2, references don't have Namespace field - use parent's namespace
 	key := client.ObjectKey{
-		Namespace: m.Spec.InfrastructureRef.Namespace,
+		Namespace: m.Namespace,
 		Name:      m.Spec.InfrastructureRef.Name,
 	}
 

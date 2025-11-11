@@ -35,15 +35,16 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/utils/ptr"
-	kubeadmv1 "sigs.k8s.io/cluster-api/api/controlplane/kubeadm/v1beta1"
+	kubeadmv1 "sigs.k8s.io/cluster-api/api/controlplane/kubeadm/v1beta2"
 	clusterv1 "sigs.k8s.io/cluster-api/api/core/v1beta2"
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework"
 	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
-	v1beta1conditions "sigs.k8s.io/cluster-api/util/deprecated/v1beta1/conditions"
+	"sigs.k8s.io/cluster-api/util/conditions"
 	"sigs.k8s.io/cluster-api/util/kubeconfig"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -277,7 +278,8 @@ func EnsureControlPlaneInitialized(ctx context.Context, input clusterctl.ApplyCu
 	By("Ensuring KubeadmControlPlane is initialized")
 	Eventually(func(g Gomega) {
 		g.Expect(getter.Get(ctx, key, kubeadmControlPlane)).To(Succeed(), "Failed to get KubeadmControlPlane object %s/%s", cluster.Namespace, cluster.Spec.ControlPlaneRef.Name)
-		g.Expect(kubeadmControlPlane.Status.Initialized).To(BeTrue(), "KubeadmControlPlane is not yet initialized")
+		// In v1beta2, Initialized is a condition, not a boolean field
+		g.Expect(conditions.IsTrue(kubeadmControlPlane, kubeadmv1.KubeadmControlPlaneInitializedCondition)).To(BeTrue(), "KubeadmControlPlane is not yet initialized")
 	}, input.WaitForControlPlaneIntervals...).Should(Succeed(), "KubeadmControlPlane object %s/%s was not initialized in time", cluster.Namespace, cluster.Spec.ControlPlaneRef.Name)
 
 	By("Ensuring API Server is reachable before applying Helm charts")
@@ -287,7 +289,15 @@ func EnsureControlPlaneInitialized(ctx context.Context, input clusterctl.ApplyCu
 		g.Expect(clusterProxy.GetClient().Get(ctx, client.ObjectKey{Name: kubesystem}, ns)).To(Succeed(), "Failed to get kube-system namespace")
 	}, input.WaitForControlPlaneIntervals...).Should(Succeed(), "API Server was not reachable in time")
 
-	if kubeadmControlPlane.Spec.KubeadmConfigSpec.ClusterConfiguration.ControllerManager.ExtraArgs["cloud-provider"] != infrav1.AzureNetworkPluginName {
+	// In v1beta2, ExtraArgs is a slice of Arg, not a map
+	cloudProvider := ""
+	for _, arg := range kubeadmControlPlane.Spec.KubeadmConfigSpec.ClusterConfiguration.ControllerManager.ExtraArgs {
+		if arg.Name == "cloud-provider" && arg.Value != nil {
+			cloudProvider = *arg.Value
+			break
+		}
+	}
+	if cloudProvider != "" && cloudProvider != infrav1.AzureNetworkPluginName {
 		// There is a co-dependency between cloud-provider and CNI so we install both together if cloud-provider is external.
 		EnsureCNIAndCloudProviderAzureHelmChart(ctx, input)
 	} else {
@@ -317,7 +327,7 @@ func ensureContolPlaneReplicasMatch(ctx context.Context, proxy framework.Cluster
 		}
 		count := 0
 		for _, machine := range machineList.Items {
-			if condition := v1beta1conditions.Get(&machine, clusterv1.MachineReadyCondition); condition != nil && condition.Status == corev1.ConditionTrue {
+			if condition := conditions.Get(&machine, clusterv1.MachineReadyCondition); condition != nil && condition.Status == metav1.ConditionTrue {
 				count++
 			}
 		}

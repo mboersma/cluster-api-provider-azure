@@ -73,8 +73,16 @@ func AzureFailureDomainsSpec(ctx context.Context, inputGetter func() AzureFailur
 			}
 			g.Expect(err).NotTo(HaveOccurred())
 			g.Expect(input.Cluster.Status.FailureDomains).To(HaveLen(len(zones)))
+			// In v1beta2, FailureDomains is a slice with Name field, not a map
 			for _, z := range zones {
-				g.Expect(input.Cluster.Status.FailureDomains[z]).NotTo(BeNil())
+				found := false
+				for _, fd := range input.Cluster.Status.FailureDomains {
+					if fd.Name == z {
+						found = true
+						break
+					}
+				}
+				g.Expect(found).To(BeTrue(), "expected failure domain %s to exist", z)
 			}
 		}, retryableOperationTimeout, retryableOperationSleepBetweenRetries).Should(Succeed())
 

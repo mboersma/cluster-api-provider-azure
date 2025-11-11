@@ -228,7 +228,7 @@ func (acp *AzureClusterProxy) collectActivityLogs(ctx context.Context, namespace
 		Name:      name,
 		Namespace: namespace,
 	})
-	if cluster.Spec.InfrastructureRef == nil {
+	if cluster.Spec.InfrastructureRef.Name == "" {
 		Logf("No infrastructure for cluster %s/%s", namespace, name)
 		return
 	}
@@ -244,7 +244,7 @@ func (acp *AzureClusterProxy) collectActivityLogs(ctx context.Context, namespace
 		}
 		groupName = workloadCluster.Spec.ResourceGroup
 	case infrav1.AzureManagedClusterKind:
-		if cluster.Spec.ControlPlaneRef == nil {
+		if cluster.Spec.ControlPlaneRef.Name == "" {
 			Logf("No control plane for cluster %s/%s", namespace, name)
 			return
 		}

@@ -75,9 +75,11 @@ func AKSClusterClassSpec(ctx context.Context, inputGetter func() AKSClusterClass
 
 	Eventually(func(g Gomega) {
 		for i := range clusterClass.Spec.Workers.MachinePools {
+			// In v1beta2, MachinePoolClass has separate Bootstrap and Infrastructure instead of Template
+			// Template references don't have Namespace - they're always in the same namespace as the ClusterClass
 			err = mgmtClient.Get(ctx, types.NamespacedName{
-				Namespace: clusterClass.Spec.Workers.MachinePools[i].Template.Infrastructure.Ref.Namespace,
-				Name:      clusterClass.Spec.Workers.MachinePools[i].Template.Infrastructure.Ref.Name,
+				Namespace: clusterClass.Namespace,
+				Name:      clusterClass.Spec.Workers.MachinePools[i].Infrastructure.TemplateRef.Name,
 			}, ammpt)
 			Expect(err).NotTo(HaveOccurred())
 			if ammpt.Spec.Template.Spec.OsDiskType != nil && *ammpt.Spec.Template.Spec.OsDiskType != "Ephemeral" {
