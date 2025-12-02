@@ -790,6 +790,18 @@ var _ = Describe("Workload cluster creation", func() {
 				})
 			})
 
+			// TEMP: Return early here, just testing KubeRay for now
+			return
+
+			By("installing KubeRay with CAAPH", func() {
+				AKSKubeRaySpec(ctx, func() AKSKubeRaySpecInput {
+					return AKSKubeRaySpecInput{
+						Cluster:       result.Cluster,
+						WaitIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
+					}
+				})
+			})
+
 			By("adding an AKS marketplace extension", func() {
 				AKSMarketplaceExtensionSpec(ctx, func() AKSMarketplaceExtensionSpecInput {
 					return AKSMarketplaceExtensionSpecInput{
@@ -818,6 +830,45 @@ var _ = Describe("Workload cluster creation", func() {
 			By("modifying the azure cluster-autoscaler settings", func() {
 				AKSAzureClusterAutoscalerSettingsSpec(ctx, func() AKSAzureClusterAutoscalerSettingsSpecInput {
 					return AKSAzureClusterAutoscalerSettingsSpecInput{
+						Cluster:       result.Cluster,
+						WaitIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
+					}
+				})
+			})
+		})
+	})
+
+	Context("Creating an AKS cluster for KubeRay tests [Managed Kubernetes]", func() {
+		It("with a single control plane node and 1 node", func() {
+			clusterName = getClusterName(clusterNamePrefix, aksClusterNameSuffix)
+			kubernetesVersionUpgradeFrom, err := GetAKSKubernetesVersion(ctx, e2eConfig, AKSKubernetesVersionUpgradeFrom)
+			Byf("Upgrading from k8s version %s", kubernetesVersionUpgradeFrom)
+			Expect(err).NotTo(HaveOccurred())
+			kubernetesVersion, err := GetAKSKubernetesVersion(ctx, e2eConfig, AKSKubernetesVersion)
+			Byf("Upgrading to k8s version %s", kubernetesVersion)
+			Expect(err).NotTo(HaveOccurred())
+
+			clusterTemplate := createApplyClusterTemplateInput(
+				specName,
+				withFlavor("aks-kuberay"),
+				withNamespace(namespace.Name),
+				withClusterName(clusterName),
+				withKubernetesVersion(kubernetesVersionUpgradeFrom),
+				withControlPlaneMachineCount(1),
+				withWorkerMachineCount(1),
+				withMachineDeploymentInterval(specName, ""),
+				withMachinePoolInterval(specName, "wait-worker-nodes"),
+				withControlPlaneWaiters(clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized:   WaitForAKSControlPlaneInitialized,
+					WaitForControlPlaneMachinesReady: WaitForAKSControlPlaneReady,
+				}),
+			)
+
+			clusterctl.ApplyClusterTemplateAndWait(ctx, clusterTemplate, result)
+
+			By("installing KubeRay with CAAPH", func() {
+				AKSKubeRaySpec(ctx, func() AKSKubeRaySpecInput {
+					return AKSKubeRaySpecInput{
 						Cluster:       result.Cluster,
 						WaitIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
 					}
